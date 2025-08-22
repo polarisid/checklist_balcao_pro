@@ -110,7 +110,7 @@ export default function Home() {
   };
 
   const handleGeneratePdf = async () => {
-    const requiredFields: (keyof FormValues)[] = ["cliente", "modelo", "numeroOS", "dataVisita", "nomeTecnico"];
+    const requiredFields: (keyof FormValues)[] = ["cliente", "modelo", "dataVisita", "nomeTecnico"];
     const missingField = requiredFields.find(field => !formData[field]);
 
     if (missingField) {
@@ -217,7 +217,7 @@ export default function Home() {
               <CardTitle className="text-2xl sm:text-3xl font-headline">Checklist Generator Pro</CardTitle>
               <CardDescription>Preencha os dados para gerar o checklist.</CardDescription>
             </div>
-            <Button type="button" variant="destructive" onClick={handleClearAll} size="sm">
+            <Button type="button" variant="ghost" onClick={handleClearAll} size="sm">
               <Trash2 className="mr-2 h-4 w-4" /> Limpar Tudo
             </Button>
           </div>
@@ -317,3 +317,4 @@ export default function Home() {
     </main>
   );
 }
+

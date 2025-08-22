@@ -124,7 +124,7 @@ export const generateChecklistPDF = async ({ header, checks, observacoes, signat
     // Observations
     if (observacoes) {
       const wrappedLines = wrapText(toUpperSafe(observacoes), 74);
-      let yPos = height - 755;
+      let yPos = height - 765;
       for (const line of wrappedLines) {
         firstPage.drawText(line, { x: 55, y: yPos, font, size: fontSize, color: textColor });
         yPos -= 15;
@@ -153,3 +153,4 @@ export const generateChecklistPDF = async ({ header, checks, observacoes, signat
     throw new Error(errorMessage);
   }
 };
+
