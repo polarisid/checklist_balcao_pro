@@ -1,9 +1,9 @@
 
 "use client";
 
-import { FileDown, Trash2, Eraser, ScanLine } from "lucide-react";
+import { FileDown, Trash2, Eraser, ScanLine, Edit } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
-import SignatureCanvas from "react-signature-canvas";
+import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { blocos } from "@/lib/blocks";
 import { generateChecklistPDF } from "@/lib/pdf";
-import SignatureBox from "@/components/SignatureBox";
+import SignatureDialog from "@/components/SignatureDialog";
 
 const ScannerDialog = dynamic(() => import('@/components/ScannerDialog'), { ssr: false });
 
@@ -45,6 +45,7 @@ type FormValues = {
   bloco: string;
   checks: Record<string, boolean>;
   observacoes: string;
+  signatureDataUrl: string | null;
 };
 
 const initialValues: FormValues = {
@@ -58,19 +59,21 @@ const initialValues: FormValues = {
   bloco: Object.keys(blocos)[0],
   checks: {},
   observacoes: "",
+  signatureDataUrl: null,
 };
 
 export default function Home() {
   const { toast } = useToast();
   const [formData, setFormData] = useState<FormValues>(initialValues);
-  const signatureRef = useRef<SignatureCanvas>(null);
   const [isScannerOpen, setScannerOpen] = useState(false);
+  const [isSignatureDialogOpen, setSignatureDialogOpen] = useState(false);
 
   useEffect(() => {
     try {
       const savedData = localStorage.getItem("checklistFormData");
       if (savedData) {
-        setFormData(JSON.parse(savedData));
+        const parsedData = JSON.parse(savedData);
+        setFormData(parsedData);
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
@@ -106,11 +109,16 @@ export default function Home() {
   };
   
   const handleClearSignature = () => {
-    signatureRef.current?.clear();
+    setFormData(prev => ({ ...prev, signatureDataUrl: null }));
   };
+  
+  const handleSaveSignature = (dataUrl: string) => {
+    setFormData(prev => ({...prev, signatureDataUrl: dataUrl }));
+    setSignatureDialogOpen(false);
+  }
 
   const handleGeneratePdf = async () => {
-    const requiredFields: (keyof FormValues)[] = ["cliente", "modelo", "dataVisita", "nomeTecnico"];
+    const requiredFields: (keyof Omit<FormValues, 'numeroOS' | 'signatureDataUrl' | 'bloco' | 'checks' | 'observacoes' | 'versao' | 'numeroSerie'>)[] = ["cliente", "modelo", "dataVisita", "nomeTecnico"];
     const missingField = requiredFields.find(field => !formData[field]);
 
     if (missingField) {
@@ -122,23 +130,21 @@ export default function Home() {
       return;
     }
 
-    if (signatureRef.current?.isEmpty()) {
+    if (!formData.signatureDataUrl) {
       toast({
         variant: "destructive",
         title: "Assinatura Obrigatória",
-        description: "Por favor, preencha o campo de assinatura do cliente.",
+        description: "Por favor, capture a assinatura do cliente.",
       });
       return;
     }
     
-    const signatureImage = signatureRef.current?.getTrimmedCanvas().toDataURL("image/png");
-
     try {
       await generateChecklistPDF({
         header: formData,
         checks: formData.checks,
         observacoes: formData.observacoes,
-        signature: signatureImage,
+        signature: formData.signatureDataUrl,
       });
 
       toast({
@@ -159,7 +165,6 @@ export default function Home() {
 
   const handleClearAll = () => {
     setFormData(initialValues);
-    handleClearSignature();
     toast({ title: "Formulário limpo", description: "Todos os dados foram apagados." });
   };
 
@@ -209,6 +214,13 @@ export default function Home() {
           onScanSuccess={handleScanSuccess}
           onClose={() => setScannerOpen(false)}
         />
+      )}
+      {isSignatureDialogOpen && (
+          <SignatureDialog
+              onSave={handleSaveSignature}
+              onClose={() => setSignatureDialogOpen(false)}
+              initialDataUrl={formData.signatureDataUrl}
+          />
       )}
       <Card className="w-full max-w-3xl mx-auto shadow-lg">
         <CardHeader>
@@ -299,12 +311,31 @@ export default function Home() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold font-headline border-b pb-2">Assinatura do Cliente</h3>
-                <Button variant="ghost" size="sm" onClick={handleClearSignature}>
-                    <Eraser className="mr-2 h-4 w-4" />
-                    Limpar Assinatura
-                </Button>
+                {formData.signatureDataUrl && (
+                  <Button variant="ghost" size="sm" onClick={handleClearSignature}>
+                      <Eraser className="mr-2 h-4 w-4" />
+                      Limpar Assinatura
+                  </Button>
+                )}
             </div>
-            <SignatureBox ref={signatureRef} />
+             <div 
+                className="w-full h-[200px] border border-dashed rounded-md flex items-center justify-center bg-secondary/30 cursor-pointer"
+                onClick={() => setSignatureDialogOpen(true)}
+              >
+                {formData.signatureDataUrl ? (
+                    <div className="relative w-full h-full">
+                        <Image src={formData.signatureDataUrl} alt="Assinatura Salva" layout="fill" objectFit="contain" />
+                         <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 flex items-center justify-center transition-opacity opacity-0 hover:opacity-100">
+                           <p className="text-white font-bold flex items-center gap-2"><Edit className="h-5 w-5"/> Editar Assinatura</p>
+                        </div>
+                    </div>
+                ) : (
+                    <Button type="button" variant="outline">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Coletar Assinatura
+                    </Button>
+                )}
+            </div>
           </div>
 
         </CardContent>
@@ -317,4 +348,3 @@ export default function Home() {
     </main>
   );
 }
-
